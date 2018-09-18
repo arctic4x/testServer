@@ -8,9 +8,17 @@ class Main {
 
         private const val KEK = "KEK"
 
-        private val clientThreadPool = ArrayList<Thread>()
+        private val clientThreadPool = ArrayList<ClientThread>()
 
         private var id = 0
+
+        val clientInteraction = object : ClientThread.ClientInteraction {
+            override fun disconected(id: Int) {
+                clientThreadPool.forEach {
+                    it.removeClient(id)
+                }
+            }
+        }
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -22,7 +30,7 @@ class Main {
 
                 println("Server is created.")
 
-                while (true){   //!server.isClosed) {
+                while (true) {   //!server.isClosed) {
                     /*if (inputServerStreamReader.ready()) {
                         val client = server.accept()
                         println("Client is found")
@@ -30,8 +38,17 @@ class Main {
                     }*/
                     val socket = server.accept()
                     try {
-                        ClientThread(socket, id++)
-                    }catch (e : Exception){}
+                        id++
+                        val listOfCliets = StringBuilder()
+                        clientThreadPool.forEach {
+                            it.addClient(id)
+                            listOfCliets.append(it.id).append(" ")
+                        }
+                        val clientThread = ClientThread(socket, id, clientInteraction)
+                        clientThread.setListOfClients(listOfCliets.toString())
+                        clientThreadPool.add(clientThread)
+                    } catch (e: Exception) {
+                    }
                 }
 
 
