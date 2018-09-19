@@ -18,6 +18,14 @@ class Main {
                     it.removeClient(id)
                 }
             }
+
+            override fun messageToClient(message: String, toClientId: Int, fromClientId: Int) {
+                clientThreadPool.forEach {
+                    if (it.id==toClientId){
+                        it.sendMessageToClient(message, fromClientId)
+                    }
+                }
+            }
         }
 
         @JvmStatic

@@ -1,13 +1,15 @@
 import java.io.*
 import java.net.Socket
 
-private const val IN_EXIT = "EXIT"
-private const val IN_MESSAGE = "MESSAGE"
+const val IN_EXIT = "EXIT"
+const val IN_MESSAGE = "MESSAGE"
+const val IN_MESSAGE_TO_CLIENT = "MESSAGE_TO_CLIENT"
 
-private const val OUT_MESSAGE = "MESSAGE"
-private const val OUT_LIST_OF_CLIENTS = "LIST_OF_CLIENTS"
-private const val OUT_ADD_CLIENT = "ADD_CLIENT"
-private const val OUT_REMOVE_CLIENT = "REMOVE_CLIENT"
+const val OUT_MESSAGE = "MESSAGE"
+const val OUT_LIST_OF_CLIENTS = "LIST_OF_CLIENTS"
+const val OUT_ADD_CLIENT = "ADD_CLIENT"
+const val OUT_REMOVE_CLIENT = "REMOVE_CLIENT"
+const val OUT_MESSAGE_FROM_CLIENT = "MESSAGE_FROM_CLIENT"
 
 class ClientThread(val socket: Socket, val id: Int, val clientInteraction: ClientInteraction) : Thread() {
     private val readerStream: BufferedReader
@@ -29,12 +31,14 @@ class ClientThread(val socket: Socket, val id: Int, val clientInteraction: Clien
         try {
             while (isRunning) {
                 val command = readerStream.readLine()
+                if (command==null) isRunning = false
 
                 println("Command: ${command}")
 
                 when (command) {
                     IN_EXIT -> isRunning = false
                     IN_MESSAGE -> sendMessage(readerStream.readLine())
+                    IN_MESSAGE_TO_CLIENT -> sendMessageToClient()
                 }
             }
 
@@ -51,23 +55,52 @@ class ClientThread(val socket: Socket, val id: Int, val clientInteraction: Clien
     }
 
     fun setListOfClients(listOfClients: String) {
-        writerStream.println(OUT_LIST_OF_CLIENTS)
-        writerStream.println(listOfClients)
-        writerStream.flush()
+        if (listOfClients.isNotBlank()) {
+            println("Send to client $id list: $listOfClients")
+            writerStream.println(OUT_LIST_OF_CLIENTS)
+            writerStream.println(listOfClients)
+            writerStream.flush()
+        }
     }
 
     fun addClient(id: Int) {
+        println("Send to client ${this.id} add client id: $id")
         writerStream.println(OUT_ADD_CLIENT)
         writerStream.println(id.toString())
         writerStream.flush()
     }
+
     fun removeClient(id: Int) {
+        println("Send to client ${this.id} remove client id: $id")
         writerStream.println(OUT_REMOVE_CLIENT)
         writerStream.println(id.toString())
         writerStream.flush()
     }
 
-    interface ClientInteraction{
+    fun sendMessageToClient() {
+        var clientId = 0
+        try {
+            clientId = Integer.parseInt(readerStream.readLine())
+        } catch (e: NumberFormatException) {
+            clientId = -1
+        }
+        val message = readerStream.readLine()
+        println("Send to client ${this.id} send message: $message to client $clientId")
+
+        clientInteraction.messageToClient(message, clientId, id)
+    }
+
+    fun sendMessageToClient(message: String, fromClientId: Int) {
+        println("Sending to client ${this.id} message: $message from ${fromClientId}")
+
+        writerStream.println(OUT_MESSAGE_FROM_CLIENT)
+        writerStream.println(fromClientId)
+        writerStream.println(message)
+        writerStream.flush()
+    }
+
+    interface ClientInteraction {
         fun disconected(id: Int)
+        fun messageToClient(message: String, toClientId: Int, fromClientId: Int)
     }
 }
